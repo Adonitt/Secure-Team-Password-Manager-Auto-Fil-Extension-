@@ -1,0 +1,12 @@
+node_modules/
+dist/
+target/
+.m2/
+.gradle/
+.idea/
+.vscode/
+.env
+*.tsbuildinfo
+test-results/
+playwright-report/
+.chrome-test-profile/

@@ -1,0 +1,22 @@
+server:
+  port: ${VAULT_PORT:8082}
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: team-vault
+  datasource:
+    url: ${VAULT_DB_URL:jdbc:postgresql://localhost:5433/vault}
+    username: ${VAULT_DB_USER:vault}
+    password: ${VAULT_DB_PASSWORD:vault-local-only}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+app:
+  web-origin: ${VAULT_WEB_ORIGIN:http://localhost:5174}

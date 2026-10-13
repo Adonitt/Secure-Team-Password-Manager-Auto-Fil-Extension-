@@ -1,0 +1,20 @@
+{
+  "name": "pw-management-task",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "extension"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w frontend",
+    "build": "npm run build -w frontend && npm run build -w extension",
+    "test": "npm run test -w frontend && npm run test -w extension",
+    "smoke": "node scripts/smoke.mjs",
+    "test:chrome": "node scripts/chrome-test.mjs",
+    "seed": "node scripts/seed.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
+  }
+}

@@ -1,0 +1,37 @@
+name: pw-management-task
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vault
+      POSTGRES_USER: vault
+      POSTGRES_PASSWORD: ${VAULT_DB_PASSWORD:-vault-local-only}
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["vault-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vault -d vault"]
+      interval: 3s
+      retries: 20
+  api:
+    build: ./backend
+    environment:
+      VAULT_DB_URL: jdbc:postgresql://postgres:5432/vault
+      VAULT_DB_USER: vault
+      VAULT_DB_PASSWORD: ${VAULT_DB_PASSWORD:-vault-local-only}
+      VAULT_WEB_ORIGIN: http://localhost:5174
+    ports: ["127.0.0.1:8082:8082"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports: ["127.0.0.1:5174:80"]
+    depends_on: [api]
+  demo-login:
+    image: nginx:alpine
+    ports: ["127.0.0.1:8083:80"]
+    volumes: ["./demo-site:/usr/share/nginx/html:ro"]
+volumes:
+  vault-db:
