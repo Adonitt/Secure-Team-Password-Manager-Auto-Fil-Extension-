@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { VaultModel } from "../hooks/useVault";
 import { rank } from "../utils/permissions";
 import { Icon } from "./Icon";
@@ -22,6 +23,29 @@ export function CredentialForm({ model, readOnly = false }: { model: VaultModel;
     !!selected?.item.hasDirectShares ||
     grants.some((grant) => grant.source === "DIRECT");
   const disabled = readOnly || (!!selected && rank(selected.item.role) < 2);
+  const currentCollectionTeam = selected?.item.collectionId
+    ? workspaces.find((team) =>
+        team.collections.some(
+          (collection) => collection.id === selected.item.collectionId,
+        ),
+      )
+    : undefined;
+  const destinationTeams = workspaces.filter((team) => rank(team.role) >= 3);
+  const pickerTeams = hasDirectShares && !currentCollectionTeam
+    ? []
+    : currentCollectionTeam &&
+        !destinationTeams.some((team) => team.id === currentCollectionTeam.id)
+      ? [currentCollectionTeam, ...destinationTeams]
+      : destinationTeams;
+  const [collectionTeamId, setCollectionTeamId] = useState(
+    currentCollectionTeam?.id || "",
+  );
+  useEffect(() => {
+    setCollectionTeamId(currentCollectionTeam?.id || "");
+  }, [currentCollectionTeam?.id, selected?.item.id]);
+  const selectedCollectionTeam = pickerTeams.find(
+    (team) => team.id === collectionTeamId,
+  );
   return (
     <form onSubmit={saveEntry} className="form-grid">
       <label>
@@ -91,36 +115,23 @@ export function CredentialForm({ model, readOnly = false }: { model: VaultModel;
         </select>
       </label>
       <label>
-        {selected ? "Saved in" : "Collection"}
+        {selected ? "Saved in" : "Save in"}
         <select
-          aria-label="Collection"
-          value={collectionId}
-          onChange={(e) => setCollectionId(e.target.value)}
+          aria-label="Vault package"
+          value={collectionTeamId}
+          onChange={(e) => {
+            const teamId = e.target.value;
+            setCollectionTeamId(teamId);
+            setCollectionId("");
+          }}
           disabled={disabled}
         >
           <option value="">Personal vault</option>
-          {selected &&
-            selected.item.collectionId &&
-            (hasDirectShares ||
-              !workspaces.some((team) =>
-                team.collections.some(
-                  (collection) => collection.id === selected.item.collectionId,
-                ),
-              )) && (
-              <option value={selected.item.collectionId}>
-                Current team collection
-              </option>
-            )}
-          {!hasDirectShares &&
-            workspaces
-              .filter((team) => rank(team.role) >= 2)
-              .flatMap((team) =>
-                team.collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {team.name} / {collection.name}
-                  </option>
-                )),
-              )}
+          {pickerTeams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.name}
+            </option>
+          ))}
         </select>
         {selected && hasDirectShares && !selected.item.collectionId && (
           <small className="field-help">
@@ -128,25 +139,44 @@ export function CredentialForm({ model, readOnly = false }: { model: VaultModel;
             access. Remove that access first.
           </small>
         )}
-        {selected && !hasDirectShares && !selected.item.collectionId && (
-          <small className="field-help">
-            No direct access is configured, so you can save this credential in
-            your personal vault or an accessible team collection.
-          </small>
-        )}
-        {selected && selected.item.collectionId && (
-          <small className="field-help">
-            This credential uses team access. Its users and roles are managed
-            from the Teams page.
-          </small>
-        )}
-        {!selected && (
-          <small className="field-help">
-            Choose Personal vault or a team collection when you save this new
-            credential.
-          </small>
-        )}
       </label>
+      {selectedCollectionTeam && (
+        <label>
+          Collection
+          <select
+            aria-label="Collection"
+            value={collectionId}
+            onChange={(e) => setCollectionId(e.target.value)}
+            disabled={disabled}
+            required
+          >
+            <option value="">Choose a collection…</option>
+            {selectedCollectionTeam.collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.name}
+              </option>
+            ))}
+          </select>
+          {selected && selected.item.collectionId && (
+            <small className="field-help">
+              This credential uses team access. Its users and roles are managed
+              from the Teams page.
+            </small>
+          )}
+        </label>
+      )}
+      {!selected && !collectionTeamId && (
+        <div className="field-help collection-picker-help">
+          Choose Personal vault or a team/package first. Then choose its
+          collection if you select a team.
+        </div>
+      )}
+      {selected && !hasDirectShares && !selected.item.collectionId && (
+        <small className="field-help collection-picker-help">
+          No direct access is configured, so you can save this credential in
+          your personal vault or an accessible team collection.
+        </small>
+      )}
       <label className="wide">
         Secure notes
         <textarea

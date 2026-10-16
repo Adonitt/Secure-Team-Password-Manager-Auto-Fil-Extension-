@@ -6,7 +6,7 @@ import {
   unlock,
   withPrivateKey,
 } from "../../shared/crypto";
-import { totp } from "../../shared/helpers";
+import { matchesDomain, totp } from "../../shared/helpers";
 import { isLocked } from "../../shared/locking";
 import type {
   CryptoInfo,
@@ -25,6 +25,7 @@ const status = el<HTMLElement>("status"),
   search = el<HTMLInputElement>("search");
 let token = "",
   privateKey = "",
+  activePageUrl = "",
   items: { item: Item; record: VaultRecord }[] = [];
 function show(panel: "login" | "unlock" | "vault") {
   login.hidden = panel !== "login";
@@ -36,6 +37,33 @@ function error(caught: unknown) {
   status.textContent =
     caught instanceof Error ? caught.message : "Request failed";
 }
+function routeRank(savedUrl: string): number {
+  if (!activePageUrl) return 0;
+  try {
+    const page = new URL(activePageUrl);
+    const saved = new URL(
+      savedUrl.includes("://") ? savedUrl : `https://${savedUrl}`,
+    );
+    const normalizePath = (path: string) => path.replace(/\/+$/, "") || "/";
+    const pagePath = normalizePath(page.pathname);
+    const savedPath = normalizePath(saved.pathname);
+    if (page.origin === saved.origin && pagePath === savedPath) return 0;
+    if (
+      page.origin === saved.origin &&
+      savedPath !== "/" &&
+      pagePath.startsWith(`${savedPath}/`)
+    )
+      return 1;
+  } catch {
+    // Invalid saved URLs are rejected by the normal validation flow.
+  }
+  return 2;
+}
+async function readActivePageUrl() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = tabs[0]?.url || "";
+  activePageUrl = /^https?:\/\//i.test(url) ? url : "";
+}
 async function touch() {
   const result = (await chrome.runtime.sendMessage({ type: "TOUCH" })) as {
     error?: string;
@@ -45,6 +73,7 @@ async function touch() {
 async function readItems() {
   const activeKey = privateKey;
   if (!activeKey) return;
+  await readActivePageUrl();
   const key = withPrivateKey(await importPrivateKey(privateKey));
   const raw = await request<Item[]>(token, "/items");
   const loaded = await Promise.all(
@@ -64,14 +93,21 @@ function action(text: string, handler: () => Promise<void>): HTMLButtonElement {
 function render() {
   list.replaceChildren();
   const q = search.value.trim().toLowerCase();
-  const shown = items.filter(({ record }) =>
-    [record.title, record.url, record.category, record.username].some((value) =>
-      value.toLowerCase().includes(q),
-    ),
-  );
+  const pageItems = activePageUrl
+    ? items.filter(({ record }) => matchesDomain(activePageUrl, record.url))
+    : items;
+  const shown = pageItems
+    .filter(({ record }) =>
+      [record.title, record.url, record.category, record.username].some((value) =>
+        value.toLowerCase().includes(q),
+      ),
+    )
+    .sort((a, b) => routeRank(a.record.url) - routeRank(b.record.url));
   if (!shown.length) {
     const p = document.createElement("p");
-    p.textContent = "No credentials found.";
+    p.textContent = activePageUrl
+      ? "No credentials found for this website."
+      : "No credentials found.";
     list.append(p);
   }
   for (const { item, record } of shown) {

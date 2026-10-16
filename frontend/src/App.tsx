@@ -36,7 +36,7 @@ export default function App() {
       </div>
     </aside>
     <div className="app-main">
-      <div className="mobile-topbar"><a className="brand" href="#vault" onClick={(event) => { event.preventDefault(); model.setTab("vault"); }}><span className="brand-icon"><Icon name="vault" size={17} /></span>Team Vault</a><button className="icon-button subtle" aria-label="Lock vault" title="Lock vault" onClick={model.lockVault}><Icon name="lock" size={16} /></button></div>
+      <div className="mobile-topbar"><a className="brand" href="#vault" onClick={(event) => { event.preventDefault(); model.setTab("vault"); }}><span className="brand-icon"><Icon name="vault" size={17} /></span>Team Vault</a><div className="mobile-topbar-actions"><button className="icon-button subtle" aria-label="Open help" title="Help" onClick={() => setHelpOpen(true)}><Icon name="info" size={16} /></button><button className="icon-button subtle" aria-label="Lock vault" title="Lock vault" onClick={model.lockVault}><Icon name="lock" size={16} /></button></div></div>
       <nav className="mobile-nav" aria-label="Main navigation">
         <button className={model.tab === "vault" ? "active" : ""} onClick={() => model.setTab("vault")}><Icon name="vault" size={15} />Vault</button>
         <button className={model.tab === "teams" ? "active" : ""} onClick={() => model.setTab("teams")}><Icon name="teams" size={15} />Teams</button>

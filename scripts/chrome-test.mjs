@@ -221,7 +221,7 @@ try {
   await page.getByRole("button", { name: "Vault", exact: true }).click();
   await page.getByRole("button", { name: "New credential", exact: true }).click();
   await expect(
-    page.getByLabel("Collection", { exact: true }).locator("option"),
+    page.getByLabel("Vault package", { exact: true }).locator("option"),
   ).toHaveCount(2);
   await page
     .getByLabel("Title", { exact: true })
@@ -236,8 +236,11 @@ try {
     .getByLabel("Password", { exact: true })
     .fill("synthetic-team-secret");
   await page
+    .getByLabel("Vault package", { exact: true })
+    .selectOption({ label: "Browser demo team" });
+  await page
     .getByLabel("Collection", { exact: true })
-    .selectOption({ label: "Browser demo team / Team logins" });
+    .selectOption({ label: "Team logins" });
   await page
     .getByRole("button", { name: "Save credential", exact: true })
     .click();
@@ -356,8 +359,12 @@ try {
   ).toBeVisible();
   await demo
     .locator("[data-team-vault-prompt]")
+    .getByLabel("Vault package", { exact: true })
+    .selectOption({ label: "Browser demo team" });
+  await demo
+    .locator("[data-team-vault-prompt]")
     .getByLabel("Vault destination", { exact: true })
-    .selectOption({ label: "Browser demo team / Team logins" });
+    .selectOption({ label: "Team logins" });
   await demo
     .locator("[data-team-vault-prompt]")
     .getByRole("button", { name: "Save", exact: true })

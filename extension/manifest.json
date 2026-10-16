@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Team Vault Demo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Encrypted team vault with user-selected autofill.",
   "permissions": ["storage", "alarms", "activeTab"],
   "host_permissions": ["http://localhost:8082/*"],

@@ -30,6 +30,7 @@ import { vaultService } from "../services/vaultService";
 import { workspaceService } from "../services/workspaceService";
 import { useAutoLock } from "./useAutoLock";
 import { rank } from "../utils/permissions";
+import { matchesCredentialSearch } from "../utils/credentialSearch";
 type Loaded = { item: Item; record: VaultRecord };
 const emptyRecord = (): VaultRecord => ({
   title: "",
@@ -103,22 +104,14 @@ export function useVault() {
   const selected = entries.find((entry) => entry.item.id === selectedId);
   const currentTeam = workspaces.find((workspace) => workspace.id === teamId);
   const filtered = useMemo(
-    () => {
-      const needle = query.trim().toLocaleLowerCase();
-      return entries.filter((entry) => {
-        const { record } = entry;
-        return (
-          [record.title, record.url, record.username, record.category, entry.item.ownerEmail].some((value) =>
-            value.toLocaleLowerCase().includes(needle),
-          ) &&
-          (categoryFilter === "All" || record.category === categoryFilter) &&
-          (ownershipFilter === "ALL" ||
-            (ownershipFilter === "OWNED"
-              ? entry.item.ownerId === session?.userId
-              : entry.item.ownerId !== session?.userId))
-        );
-      });
-    },
+    () => entries.filter((entry) =>
+      matchesCredentialSearch(entry, query) &&
+      (categoryFilter === "All" || (entry.record.category || "") === categoryFilter) &&
+      (ownershipFilter === "ALL" ||
+        (ownershipFilter === "OWNED"
+          ? entry.item.ownerId === session?.userId
+          : entry.item.ownerId !== session?.userId)),
+    ),
     [entries, query, categoryFilter, ownershipFilter, session],
   );
 

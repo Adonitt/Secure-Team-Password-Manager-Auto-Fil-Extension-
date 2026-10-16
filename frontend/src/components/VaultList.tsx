@@ -83,7 +83,7 @@ export function VaultList({ model }: { model: VaultModel }) {
       <div className="vault-tools">
         <div className="search-field">
           <Icon name="search" size={16} />
-          <input ref={searchRef} aria-label="Search credentials" placeholder="Search name, website or username" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <input ref={searchRef} aria-label="Search credentials" placeholder="Search name, email or website" value={query} onChange={(event) => setQuery(event.target.value)} />
           {query && <button type="button" className="icon-button subtle" aria-label="Clear search" title="Clear search" onClick={() => setQuery("")}><Icon name="close" size={14} /></button>}
           <kbd>Ctrl K</kbd>
         </div>
@@ -105,7 +105,7 @@ export function VaultList({ model }: { model: VaultModel }) {
           <option value="title">Name A–Z</option><option value="website">Website A–Z</option><option value="category">Category A–Z</option>
         </select>
       </div>
-      <div className="table-summary"><span role="status">{rangeStart}–{rangeEnd} of {shown.length} {shown.length === 1 ? "credential" : "credentials"}</span>{hasFilters && <button className="text-button" onClick={clearFilters}>Clear filters</button>}<label className="page-size-control">Rows <select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select><span>per page</span></label></div>
+      <div className="table-summary"><span role="status">{rangeStart}–{rangeEnd} of {shown.length} {shown.length === 1 ? "credential" : "credentials"}</span>{hasFilters && <button className="text-button" onClick={clearFilters}>Clear filters</button>}<label className="page-size-control" title="Rows per page"><select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select></label></div>
       <div className="entry-table-wrap">
         {shown.length ? <table className="entry-table">
           <thead><tr><th scope="col">Name</th><th scope="col">Username</th><th scope="col">Website</th><th scope="col">Location</th><th scope="col">Access</th><th scope="col">Your role</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>

@@ -33,6 +33,11 @@ type TeamCollection = {
   label: string;
   members: { id: string; publicKey: string; role: string }[];
 };
+type TeamPackage = {
+  id: string;
+  label: string;
+  collections: TeamCollection[];
+};
 async function touch() {
   await chrome.storage.session.set({ lastActive: Date.now() });
   await chrome.alarms.create("auto-lock", { when: Date.now() + AUTO_LOCK_MS });
@@ -95,14 +100,17 @@ async function entries() {
 async function teamCollections(
   token: string,
   userId: string,
-): Promise<TeamCollection[]> {
+): Promise<TeamPackage[]> {
   const teams = await request<{ id: string; name: string; role: string }[]>(
     token,
     "/workspaces",
   );
   const details = await Promise.all(
     teams
-      .filter((team) => team.role !== "VIEWER")
+      // Only team owners and admins may create credentials in a collection.
+      // Editors can edit existing credentials, but cannot choose a collection
+      // as a destination for a newly captured login.
+      .filter((team) => team.role === "OWNER" || team.role === "ADMIN")
       .map((team) =>
         request<{
           id: string;
@@ -112,13 +120,15 @@ async function teamCollections(
         }>(token, `/workspaces/${team.id}`),
       ),
   );
-  return details.flatMap((team) =>
-    team.collections.map((collection) => ({
+  return details.map((team) => ({
+    id: team.id,
+    label: team.name,
+    collections: team.collections.map((collection) => ({
       id: collection.id,
-      label: `${team.name} / ${collection.name}`,
+      label: collection.name,
       members: team.members.filter((member) => member.id !== userId),
     })),
-  );
+  }));
 }
 async function activeTab(): Promise<chrome.tabs.Tab> {
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -237,10 +247,11 @@ async function handle(
     const pending = await pendingFor(tabId, pageUrl);
     const collections = await teamCollections(data.token, data.userId);
     return {
-      destinations: [
-        { id: "", label: "Personal vault" },
-        ...collections.map(({ id, label }) => ({ id, label })),
-      ],
+      packages: collections.map((team) => ({
+        id: team.id,
+        label: team.label,
+        collections: team.collections.map(({ id, label }) => ({ id, label })),
+      })),
       selectedId: pending?.updateId ? pending.collectionId || "" : "",
     };
   }
@@ -287,7 +298,9 @@ async function handle(
       const collectionId = message.collectionId || null;
       const collections = await teamCollections(data.token, data.userId);
       const destination = collectionId
-        ? collections.find((collection) => collection.id === collectionId)
+        ? collections
+            .flatMap((team) => team.collections)
+            .find((collection) => collection.id === collectionId)
         : undefined;
       if (collectionId && !destination)
         throw new Error("Selected team collection is unavailable");

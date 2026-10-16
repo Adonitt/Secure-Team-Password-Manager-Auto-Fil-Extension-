@@ -2,7 +2,11 @@ type Reply = {
   error?: string;
   prompt?: boolean;
   update?: boolean;
-  destinations?: { id: string; label: string }[];
+  packages?: {
+    id: string;
+    label: string;
+    collections: { id: string; label: string }[];
+  }[];
   selectedId?: string | null;
   username?: string;
   password?: string;
@@ -180,16 +184,24 @@ function showPrompt(update: boolean) {
   const note = document.createElement("p");
   note.textContent = "Only saved after you choose Save.";
   note.style.margin = "8px 0 12px";
-  const destinationLabel = document.createElement("label");
-  destinationLabel.textContent = update ? "Saved in" : "Save in";
-  destinationLabel.style.cssText =
+  const packageLabel = document.createElement("label");
+  packageLabel.textContent = update ? "Saved in" : "Save in";
+  packageLabel.style.cssText =
     "display:grid;gap:5px;margin:8px 0 12px;font-size:12px;font-weight:600";
-  const destination = document.createElement("select");
-  destination.setAttribute("aria-label", "Vault destination");
-  destination.disabled = true;
-  destination.style.cssText =
+  const packageSelect = document.createElement("select");
+  packageSelect.setAttribute("aria-label", "Vault package");
+  packageSelect.style.cssText =
     "width:100%;padding:7px;border:1px solid #b7c5d8;border-radius:6px;background:white;color:#17212d;font:13px system-ui";
-  destinationLabel.append(destination);
+  packageLabel.append(packageSelect);
+  const collectionLabel = document.createElement("label");
+  collectionLabel.textContent = "Collection";
+  collectionLabel.style.cssText =
+    "display:none;gap:5px;margin:8px 0 12px;font-size:12px;font-weight:600";
+  const collectionSelect = document.createElement("select");
+  collectionSelect.setAttribute("aria-label", "Vault destination");
+  collectionSelect.style.cssText =
+    "width:100%;padding:7px;border:1px solid #b7c5d8;border-radius:6px;background:white;color:#17212d;font:13px system-ui";
+  collectionLabel.append(collectionSelect);
   const save = document.createElement("button");
   save.type = "button";
   save.textContent = update ? "Update" : "Save";
@@ -206,7 +218,7 @@ function showPrompt(update: boolean) {
     void chrome.runtime
       .sendMessage({
         type: "SAVE_CAPTURE",
-        collectionId: destination.value || null,
+        collectionId: collectionSelect.value || null,
       })
       .then((result: Reply) => {
         if (result.error) {
@@ -223,26 +235,77 @@ function showPrompt(update: boolean) {
     box.remove();
     savePrompt = null;
   });
-  box.append(title, note, destinationLabel, save, later);
+  box.append(title, note, packageLabel, collectionLabel, save, later);
   document.documentElement.append(box);
   void chrome.runtime
     .sendMessage({ type: "GET_DESTINATIONS" })
     .then((result: Reply) => {
       if (savePrompt !== box) return;
-      if (result.error || !result.destinations?.length) {
+      if (result.error || !result.packages) {
         note.textContent = result.error || "No vault destinations available.";
         return;
       }
-      destination.replaceChildren(
-        ...result.destinations.map((option) => {
+      const packages = result.packages;
+      const personalValue = "__PERSONAL__";
+      const personalOption = document.createElement("option");
+      personalOption.value = personalValue;
+      personalOption.textContent = "Personal vault";
+      packageSelect.replaceChildren(
+        personalOption,
+        ...packages.map((team) => {
           const element = document.createElement("option");
-          element.value = option.id;
-          element.textContent = option.label;
+          element.value = team.id;
+          element.textContent = team.label;
           return element;
         }),
       );
-      destination.value = result.selectedId || "";
-      destination.disabled = update;
+
+      const renderCollections = (teamId: string) => {
+        const team = packages.find((value) => value.id === teamId);
+        if (!team) {
+          collectionLabel.style.display = "none";
+          collectionSelect.replaceChildren();
+          collectionSelect.value = "";
+          save.disabled = false;
+          return;
+        }
+        collectionLabel.style.display = "grid";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose a collection…";
+        collectionSelect.replaceChildren(
+          placeholder,
+          ...team.collections.map((collection) => {
+            const element = document.createElement("option");
+            element.value = collection.id;
+            element.textContent = collection.label;
+            return element;
+          }),
+        );
+        collectionSelect.value = "";
+        collectionSelect.disabled = update;
+        save.disabled = !update;
+      };
+
+      packageSelect.addEventListener("change", () => {
+        renderCollections(packageSelect.value);
+      });
+      collectionSelect.addEventListener("change", () => {
+        save.disabled = !update && !collectionSelect.value;
+      });
+
+      const selectedTeam = packages.find((team) =>
+        team.collections.some((collection) => collection.id === result.selectedId),
+      );
+      packageSelect.value = selectedTeam?.id || personalValue;
+      if (selectedTeam) {
+        renderCollections(selectedTeam.id);
+        collectionSelect.value = result.selectedId || "";
+      } else {
+        renderCollections(personalValue);
+      }
+      packageSelect.disabled = update;
+      collectionSelect.disabled = update || !selectedTeam;
       save.disabled = false;
     })
     .catch(() => {

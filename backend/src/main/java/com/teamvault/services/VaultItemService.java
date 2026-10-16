@@ -100,7 +100,10 @@ public class VaultItemService {
                                             new ResponseStatusException(
                                                     HttpStatus.FORBIDDEN,
                                                     "Collection access denied"));
-            Permissions.require(membership.getRole(), Role.EDITOR);
+            // Creating a new credential in a team collection is reserved for
+            // team admins and owners. Editors can still edit credentials they
+            // already have access to.
+            Permissions.require(membership.getRole(), Role.ADMIN);
             var expected =
                     members.findByWorkspaceId(workspaceId).stream()
                             .filter(member -> !member.getUser().getId().equals(owner.getId()))

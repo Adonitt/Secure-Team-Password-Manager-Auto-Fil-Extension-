@@ -18,21 +18,32 @@ export function SharingPanel({ model }: { model: VaultModel }) {
   } = model;
   const [grantQuery, setGrantQuery] = useState("");
   const [grantPage, setGrantPage] = useState(1);
+  const [grantSourceFilter, setGrantSourceFilter] = useState<"ALL" | "OWNER" | "DIRECT" | "COLLECTION">("ALL");
+  const [grantPageSize, setGrantPageSize] = useState(10);
   const isTeamCredential = !!model.selected?.item.collectionId;
-  const grantsPerPage = 5;
-  const visibleGrants = grants.filter((grant) =>
-    grant.email.toLocaleLowerCase().includes(grantQuery.trim().toLocaleLowerCase()),
-  );
-  const grantPageCount = Math.max(1, Math.ceil(visibleGrants.length / grantsPerPage));
+  const visibleGrants = grants
+    .filter((grant) => {
+      const matchesQuery = grant.email.toLocaleLowerCase().includes(grantQuery.trim().toLocaleLowerCase());
+      const matchesSource = grantSourceFilter === "ALL" || grant.source === grantSourceFilter;
+      return matchesQuery && matchesSource;
+    })
+    .sort((left, right) => left.email.localeCompare(right.email, undefined, { sensitivity: "base" }));
+  const grantPageCount = Math.max(1, Math.ceil(visibleGrants.length / grantPageSize));
   const safeGrantPage = Math.min(grantPage, grantPageCount);
   const pagedGrants = visibleGrants.slice(
-    (safeGrantPage - 1) * grantsPerPage,
-    safeGrantPage * grantsPerPage,
+    (safeGrantPage - 1) * grantPageSize,
+    safeGrantPage * grantPageSize,
   );
+  const grantRangeStart = visibleGrants.length ? (safeGrantPage - 1) * grantPageSize + 1 : 0;
+  const grantRangeEnd = Math.min(safeGrantPage * grantPageSize, visibleGrants.length);
   useEffect(() => {
     setGrantQuery("");
     setGrantPage(1);
+    setGrantSourceFilter("ALL");
   }, [model.selected?.item.id]);
+  useEffect(() => {
+    setGrantPage(1);
+  }, [grantQuery, grantSourceFilter, grantPageSize]);
   return (
     <section className="share-section">
       <h3>Access</h3>
@@ -97,17 +108,42 @@ export function SharingPanel({ model }: { model: VaultModel }) {
         </>
       )}
       {grants.length > 0 && (
-        <input
-          className="access-search"
-          type="search"
-          aria-label="Search users with access"
-          placeholder="Search users with access…"
-          value={grantQuery}
-          onChange={(event) => {
-            setGrantQuery(event.target.value);
-            setGrantPage(1);
-          }}
-        />
+        <div className="access-toolbar">
+          <input
+            className="access-search"
+            type="search"
+            aria-label="Search users with access"
+            placeholder="Search users with access…"
+            value={grantQuery}
+            onChange={(event) => setGrantQuery(event.target.value)}
+          />
+          <select
+            aria-label="Filter access source"
+            value={grantSourceFilter}
+            onChange={(event) => setGrantSourceFilter(event.target.value as typeof grantSourceFilter)}
+          >
+            <option value="ALL">All access</option>
+            <option value="OWNER">Owner</option>
+            <option value="DIRECT">Direct share</option>
+            <option value="COLLECTION">Team collection</option>
+          </select>
+          <label className="access-page-size" title="Rows per page">
+            <select
+              aria-label="Access rows per page"
+              value={grantPageSize}
+              onChange={(event) => setGrantPageSize(Number(event.target.value))}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </label>
+        </div>
+      )}
+      {grants.length > 0 && (
+        <div className="access-summary" role="status">
+          {grantRangeStart}–{grantRangeEnd} of {visibleGrants.length} {visibleGrants.length === 1 ? "user" : "users"}
+        </div>
       )}
       <div className="grant-list">
         {pagedGrants.map((grant) => (
@@ -145,7 +181,7 @@ export function SharingPanel({ model }: { model: VaultModel }) {
           <p className="muted small">No users with access found.</p>
         )}
       </div>
-      {visibleGrants.length > grantsPerPage && (
+      {visibleGrants.length > 0 && (
         <div className="pagination" aria-label="Access list pagination">
           <button
             type="button"
